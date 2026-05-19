@@ -1,0 +1,119 @@
+name: Java DevSecOps Pipeline (No Sonar)
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+
+# ----------------------------------------
+# 1. BUILD + UNIT TEST + COVERAGE
+# ----------------------------------------
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: maven
+
+      - name: Build + Unit Tests + Coverage
+        run: mvn clean verify
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+
+# ----------------------------------------
+# 2. CODE QUALITY (SONAR ALTERNATIVE)
+# ----------------------------------------
+  code-quality:
+    name: Code Quality (Checkstyle + PMD + SpotBugs)
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ✅ Checkstyle
+      - name: Run Checkstyle
+        run: mvn checkstyle:check
+
+      # ✅ PMD (Code smells, dead code)
+      - name: Run PMD
+        run: mvn pmd:check
+
+      # ✅ SpotBugs (bug detection)
+      - name: Run SpotBugs
+        run: mvn com.github.spotbugs:spotbugs-maven-plugin:check
+
+# ----------------------------------------
+# 3. SECURITY TESTING
+# ----------------------------------------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ✅ GitHub native SAST
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+
+      - name: Build for CodeQL
+        run: mvn compile
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      # ✅ Dependency vulnerabilities
+      - name: OWASP Dependency Check
+        run: mvn org.owasp:dependency-check-maven:check
+
+      - name: Upload Dependency Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: target/dependency-check-report.html
+          path: target/dependency-check-report.html
