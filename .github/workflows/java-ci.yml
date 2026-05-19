@@ -111,9 +111,9 @@ jobs:
       - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
 
-      - name: Upload Dependency Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-report
-          path: target/dependency-check-report.html
-          path: target/dependency-check-report.html
+      # - name: Upload Dependency Report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: dependency-report
+      #     path: target/dependency-check-report.html
+      #     path: target/dependency-check-report.html
